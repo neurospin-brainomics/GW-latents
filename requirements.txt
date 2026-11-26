@@ -1,0 +1,14 @@
+# Runtime dependencies of latent_gw (same as pyproject.toml). Preferred install: pip install -e .
+numpy>=1.24
+scipy>=1.10
+pandas>=2.0
+scikit-learn>=1.3
+joblib>=1.3
+torch>=2.1          # CPU or GPU build; on a cluster, prefer the module/wheel matching its CUDA version
+tqdm>=4.60
+# optional: figures and the README animation
+matplotlib>=3.7
+imageio>=2.30
+pot>=0.9
+# tests
+pytest>=7
