@@ -209,3 +209,23 @@ __marimo__/
 
 # Backup files
 *~
+
+# --- project-specific ---
+# never commit data, embeddings, plans or results
+*.npy
+*.npz
+*.pkl
+*.parquet
+*.out
+*.err
+data/
+outputs/
+figures/
+results/
+# local caches and job scripts (contain cluster paths)
+hf_home/
+pip_cache/
+model_cache/
+pyensembl_cache/
+*.slurm
+env_*.sh
