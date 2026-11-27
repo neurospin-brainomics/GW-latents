@@ -229,3 +229,4 @@ model_cache/
 pyensembl_cache/
 *.slurm
 env_*.sh
+toy_figures/

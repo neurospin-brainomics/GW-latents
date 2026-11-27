@@ -1,0 +1,34 @@
+# Dependencies of the embedding pipelines (not needed for the latent_gw package itself).
+#     pip install -r pipelines/requirements.txt
+# Versions pinned (==) are those of the environment in which the BrainHarmonix inference and the NTv3
+# random-weight control were run; NTv3 / transformers in particular are sensitive to version changes
+# (remote model code loaded with trust_remote_code). Other packages: minimum versions.
+
+# --- deep learning (genomic models and BrainHarmonix)
+torch==2.12.0
+transformers==4.57.6
+huggingface_hub==0.36.2
+tokenizers==0.22.2
+safetensors>=0.8
+timm==1.0.28
+einops==0.8.2
+
+# --- genomic sequence generation
+pyensembl>=2.3
+requests>=2.31          # gnomAD GraphQL API
+
+# --- imaging preprocessing and quality control
+nibabel>=5.4
+nilearn>=0.14
+scikit-learn>=1.3
+joblib>=1.3
+matplotlib>=3.8
+
+# --- common
+numpy>=1.26
+scipy>=1.13
+pandas>=2.0
+tqdm>=4.66
+
+# BrainHarmonix also needs its own repository (cloned by the inference scripts) and that repository's
+# requirements; flash-attn is optional (the scripts switch attention to "eager").

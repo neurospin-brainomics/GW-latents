@@ -82,3 +82,18 @@ def test_cka_matrix_matches_pairwise_and_finds_homologues(tmp_path):
                           "--n-sub", "0", "--homologues", "--n-null", "200"], capture_output=True, text=True)
     assert out.returncode == 0, out.stderr
     assert (tmp_path / "o" / "cka_pairs.csv").exists() and "homologues" in out.stdout
+
+
+def test_plots_smoke():
+    pytest.importorskip("matplotlib")
+    import matplotlib; matplotlib.use("Agg")
+    from latent_gw import plots
+    X = cloud(60); Y = X @ np.linalg.qr(np.random.default_rng(1).normal(size=(6, 6)))[0]
+    res = {"euclidean": lg.compare(X, Y, grid=(1.5, 0.1), B=2, dev="cpu", progress=False)}
+    T = plots.transport_plans(X, Y, "euclidean", grid=(1.5, 0.1), dev="cpu")
+    assert T[0.1].shape == (60, 60) and np.isclose(T[0.1].sum(), 1)
+    B = plots.pool_blocks(T[0.1], plots.spectral_order(Y, k=8), n_blocks=6)
+    assert B.shape == (6, 6) and np.isclose(B.mean(), 1, rtol=0.05)
+    for fig in (plots.scores_vs_eps(res), plots.retrieval_vs_eps(res), plots.transport_plans_figure({"e": T[0.1]}, n_blocks=6),
+                plots.spectra({"X": X, "Y": Y}), plots.score_matrix(lg.cka_matrix({"a": X, "b": Y}, progress=False))):
+        assert fig is not None
