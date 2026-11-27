@@ -34,10 +34,29 @@ The repository has two parts:
 ## Install
 
 ```bash
-pip install -e .                 # numpy, scipy, pandas, scikit-learn, joblib, torch (CPU or GPU)
+python -m venv .venv && source .venv/bin/activate
+pip install -e .                 # numpy, scipy, pandas, scikit-learn, joblib, torch (CPU or GPU), tqdm
 pip install -e ".[figures,test]" # + matplotlib, imageio, POT (for the animation), pytest
-pytest -q                        # 10 tests, about 30 s on CPU
+# or, equivalently: pip install -r requirements.txt && pip install -e .
+pytest -q                        # 12 tests, about 30 s on CPU
 ```
+
+## Check your installation: the Swiss-roll toy
+
+`python examples/toy_swiss_roll.py` takes about 10 s on CPU. It compares a Swiss roll with its unrolled version: the same 300 samples, with the same intrinsic coordinates, one rolled in 3-D and the other flat in 5-D with other axes. Straight-line distances cut across the layers of the roll; geodesic distances follow it. You should get:
+
+```
+euclidean                                      geodesic_k10
+ rel    rA  rA_surr  contrast      z  ntrT      rel    rA  rA_surr  contrast      z  ntrT  top1
+1.50 0.000    0.001    -0.000 -0.911 0.976     1.50 0.002    0.001     0.001 17.199 1.091 0.003
+0.30 0.466    0.423     0.042  0.821 0.650     0.30 0.577    0.452     0.124 19.093 2.646 0.053
+0.10 0.550    0.497     0.053  1.144 0.781     0.10 0.682    0.527     0.155 24.446 3.898 0.093
+0.03 0.582    0.523     0.059  1.342 0.992     0.03 0.718    0.555     0.163 26.012 6.769 0.150
+```
+
+- **Euclidean:** the raw score looks decent ($r_A = 0.58$), but same-spectrum surrogates do almost as well ($z \approx 1$) and no sample is recovered ($n\cdot\mathrm{tr}(T) \approx 1$).
+- **Geodesic:** the shared shape stands out beyond the spectrum ($z \approx 25$), and GW starts recovering samples (×6.8 over chance, 15 % exact matches at $0.03\,\varepsilon_c$).
+- **The first row (1.5 $\varepsilon_c$) is a control:** its contrast must be ≈ 0. Its $z$ is meaningless there, because the surrogates barely differ from one another.
 
 ## Quickstart
 
@@ -47,7 +66,7 @@ import latent_gw as lg
 res = lg.compare(X, Y, metric="geodesic_k20", surrogate="pcperm", B=4)
 ```
 
-`compare` runs, for one pair, exactly the computation of the Champollion maps. `res` has one row per $\varepsilon/\varepsilon_c$ (default grid 1.5, 0.7, 0.3, 0.1, 0.03), with the following columns:
+`compare` runs, for one pair, exactly the computation of the Champollion maps, with a progress bar (`progress=False` to turn it off). `res` has one row per $\varepsilon/\varepsilon_c$ (default grid 1.5, 0.7, 0.3, 0.1, 0.03), with the following columns:
 - `rA`, plus `r`, `r_ecc`, `r_diag`, `r_rest`, `r_off`: the GW score and its parts;
 - `rA_surr`: the mean over surrogates of `X` that keep the spectrum;
 - `contrast` $=$ `rA` $-$ `rA_surr`;
@@ -76,6 +95,33 @@ How to read it:
 
 ---
 
+## Figures
+
+`latent_gw.plots` (needs `pip install -e ".[figures]"`) draws the figures used for the real analyses. Every function returns a matplotlib figure:
+- `scores_vs_eps(results)`: $r_A$ of the real pair against its surrogates, and the contrast with its $z$, across $\varepsilon$;
+- `retrieval_vs_eps(results)`: $n\cdot\mathrm{tr}(T)$ across $\varepsilon$;
+- `transport_plans_figure(plans, order)`: plans pooled in blocks of samples, ordered along the manifold (`spectral_order`), computed with `transport_plans(X, Y, metric)`;
+- `spectra(clouds)`: variance spectra;
+- `score_matrix(M)`: e.g. the CKA matrix from `cka_matrix`.
+
+`python examples/toy_plots.py` draws all of them on the Swiss-roll toy in about 20 s and writes them to `toy_figures/`. The geodesic plan follows one continuous band (each sample goes to its neighbourhood on the sheet); the Euclidean plan zigzags, because straight-line distances confuse the layers of the roll.
+
+<p align="center"><img src="assets/toy_transport_plans.png" width="760" alt="Transport plans on the Swiss-roll toy, Euclidean vs geodesic"></p>
+
+---
+
+## CKA between many spaces
+
+`latent_gw.cka_map` computes the debiased linear CKA for every pair of spaces in a folder of `.npy` files, with the same subsample and preprocessing as the GW maps. With `--homologues`, it also tests pairs named `<base>_left` / `<base>_right`:
+
+```bash
+python -m latent_gw.cka_map --inputs path/to/aligned --out out/cka --homologues
+```
+
+It writes `cka_pairs.csv`, `cka_matrix.csv`, `cka_homologues.csv` (CKA and residual per homologue pair) and `cka_test.txt`: the mean CKA of the homologues vs. random left/right re-pairings, and a sign test. Every space must list the same samples in the same order. From Python: `lg.cka_matrix(dict_of_arrays)`.
+
+---
+
 ## The method in brief
 
 | Step | Module (origin) | |
@@ -89,14 +135,14 @@ How to read it:
 | Surrogates | `surrogates` (178) | `native`: random Haar rotation in sample space, exactly the same covariance. `elliptic`: native with the original norms. `spectral` / `spectral_ecc`: from $D$ alone, for any metric. `pcperm` (215): PCA scores permuted independently per component. |
 | Tests | `inference` (178, 224) | `mc_test`: $z$, rank $p$ per $\varepsilon$, and $p$ of the max over $\varepsilon$ (exact under exchangeability). `pairing_tests`: $n\cdot\mathrm{tr}(T)$ and Mantel against permutations. `pair_test`: expected pairs among many spaces (baseline, residuals, re-pairings, sign test). |
 | Per pair | `compare` (215) | `prep_region` (distances, descriptors, leading eigenpair), `path` (continuation from the slightly tilted product coupling), and `compare`: contrast and $z$ against surrogates. |
-| Baseline | `cka` (215) | Debiased linear CKA (`cka_u`), which uses the pairing; plain `linear_cka`. |
+| Baseline | `cka`, `cka_map` (215) | Debiased linear CKA (`cka_u`), which uses the pairing; plain `linear_cka`. `cka_map`: all pairs of spaces at once, plus the homologue test. |
 
 ## Layout
 
 ```
 src/latent_gw/          the method (no application code)
 tests/                  unit tests (r = scaled GW-cost gain, metrics, surrogates, shape vs spectrum, pair test)
-examples/               quickstart.py, gw_clusters_gif.py (the animation above)
+examples/               toy_swiss_roll.py (installation check), toy_plots.py (figures), quickstart.py, gw_clusters_gif.py (the animation above)
 applications/champollion/   application to Champollion sulcal regions, see its README
 assets/                 README figures
 ```

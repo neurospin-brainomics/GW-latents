@@ -17,4 +17,5 @@ from .solver import describe, eps_c, gw_solve, run_path, solve
 from .surrogates import (make_surrogate, mds_embedding, surr_elliptic, surr_native, surr_pcperm,
                          surr_spectral, surr_spectral_ecc)
 
+# figures: `from latent_gw import plots` (needs matplotlib)
 __version__ = "0.1.0"
